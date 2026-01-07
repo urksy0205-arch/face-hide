@@ -95,10 +95,12 @@ st.markdown("""
         margin: 20px 0;
     }
     
-    /* 슬라이더 영역 - 너비 제한 */
+    /* 슬라이더 영역 */
     .slider-container {
-        max-width: 400px;
-        margin: 20px 0;
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #e0e0e0;
     }
     
     /* 파일 업로더 */
@@ -154,6 +156,16 @@ st.markdown("""
         font-weight: 700;
         color: #212121;
         margin-bottom: 20px;
+    }
+    
+    /* 이미지 크기 제한 */
+    .stImage {
+        max-height: 400px !important;
+    }
+    
+    .stImage img {
+        max-height: 400px !important;
+        object-fit: contain;
     }
     
     /* 구분선 */
@@ -250,85 +262,141 @@ mode = st.radio(
 
 is_auto_mode = "자동" in mode
 
-# === 설정 영역 ===
+st.markdown("---")
+
+# ==================== 자동 모드 ====================
 if is_auto_mode:
     st.info("🤖 **자동 모드**: AI가 가장 강력한 민감도로 얼굴을 최대한 많이 찾아 모자이크 처리합니다.")
     conf_value = 0.50
-else:
-    st.info("⚙️ **수동 모드**: 슬라이더로 민감도를 조절할 수 있습니다. (낮을수록 더 많이 탐지)")
     
-    # 슬라이더를 짧게 (컬럼 사용)
-    col_slider, col_empty = st.columns([1, 2])
-    with col_slider:
-        conf_value = st.slider("민감도 조절", 0.50, 0.99, 0.90, step=0.01)
-        st.caption(f"현재 민감도: {conf_value:.2f}")
-
-st.markdown("---")
-
-# === 파일 업로드 ===
-st.markdown('<div class="section-title">📤 이미지 파일을 선택하세요 (여러 개 선택 가능)</div>', unsafe_allow_html=True)
-
-uploaded_files = st.file_uploader(
-    "파일 선택", 
-    type=['jpg', 'jpeg', 'png'], 
-    accept_multiple_files=True,
-    label_visibility="collapsed"
-)
-
-# === 처리 결과 저장용 리스트 ===
-processed_images_data = []
-
-# === 업로드된 파일 처리 ===
-if uploaded_files:
-    st.success(f"✅ 총 {len(uploaded_files)}장의 사진을 처리합니다.")
+    # 파일 업로드
+    st.markdown('<div class="section-title">📤 이미지 파일을 선택하세요 (여러 개 선택 가능)</div>', unsafe_allow_html=True)
     
-    for idx, uploaded_file in enumerate(uploaded_files, 1):
-        with st.expander(f"📷 [{idx}] {uploaded_file.name}", expanded=True):
+    uploaded_files = st.file_uploader(
+        "파일 선택", 
+        type=['jpg', 'jpeg', 'png'], 
+        accept_multiple_files=True,
+        label_visibility="collapsed",
+        key="auto_uploader"
+    )
+    
+    processed_images_data = []
+    
+    if uploaded_files:
+        st.success(f"✅ 총 {len(uploaded_files)}장의 사진을 처리합니다.")
+        
+        for idx, uploaded_file in enumerate(uploaded_files, 1):
+            with st.expander(f"📷 [{idx}] {uploaded_file.name}", expanded=False):
+                
+                image = Image.open(uploaded_file)
+                if image.mode != 'RGB':
+                    image = image.convert('RGB')
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.image(image, caption="🖼️ 원본 사진", use_column_width=True)
+
+                with st.spinner(f"🔄 {uploaded_file.name} 처리 중..."):
+                    processed_image, face_count = process_image(image, conf_value, is_auto_mode)
+
+                with col2:
+                    st.image(processed_image, caption=f"✨ 모자이크 결과 ({face_count}개 얼굴)", use_column_width=True)
+                    
+                    byte_img = convert_image_to_bytes(processed_image)
+                    processed_images_data.append((f"mosaic_{uploaded_file.name}", byte_img))
+                    
+                    st.download_button(
+                        label=f"💾 이 이미지 다운로드",
+                        data=byte_img,
+                        file_name=f"mosaic_{uploaded_file.name}",
+                        mime="image/jpeg",
+                        key=f"download_auto_{idx}"
+                    )
+        
+        # 일괄 다운로드
+        if len(processed_images_data) > 1:
+            st.markdown('<div class="bulk-download">', unsafe_allow_html=True)
+            st.markdown('<h3>📦 모든 결과 한번에 다운로드</h3>', unsafe_allow_html=True)
             
+            zip_data = create_zip(processed_images_data)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            
+            col_center = st.columns([1, 2, 1])[1]
+            with col_center:
+                st.download_button(
+                    label=f"📥 전체 다운로드 ({len(processed_images_data)}장) - ZIP",
+                    data=zip_data,
+                    file_name=f"코끼리공장_모자이크_{timestamp}.zip",
+                    mime="application/zip",
+                    key="bulk_download_auto"
+                )
+            st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.success("🎉 모든 작업이 완료되었습니다!")
+
+# ==================== 수동 모드 ====================
+else:
+    st.info("⚙️ **수동 모드**: 슬라이더로 민감도를 조절하면 실시간으로 결과를 확인할 수 있습니다.")
+    
+    # 좌우 레이아웃: 왼쪽 슬라이더, 오른쪽 이미지
+    col_left, col_right = st.columns([1, 3])
+    
+    with col_left:
+        st.markdown('<div class="slider-container">', unsafe_allow_html=True)
+        st.markdown("#### ⚙️ 민감도 조절")
+        conf_value = st.slider(
+            "민감도", 
+            0.50, 0.99, 0.90, 
+            step=0.01,
+            help="낮을수록 더 많은 얼굴을 탐지합니다"
+        )
+        st.caption(f"현재 민감도: **{conf_value:.2f}**")
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # 파일 업로드
+        st.markdown("#### 📤 파일 업로드")
+        uploaded_file = st.file_uploader(
+            "이미지 선택", 
+            type=['jpg', 'jpeg', 'png'],
+            label_visibility="collapsed",
+            key="manual_uploader"
+        )
+    
+    with col_right:
+        if uploaded_file:
             image = Image.open(uploaded_file)
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
-            col1, col2 = st.columns(2)
+            # 원본과 결과를 좌우로 배치
+            img_col1, img_col2 = st.columns(2)
             
-            with col1:
-                st.image(image, caption="🖼️ 원본 사진", use_container_width=True)
-
-            with st.spinner(f"🔄 {uploaded_file.name} 처리 중..."):
-                processed_image, face_count = process_image(image, conf_value, is_auto_mode)
-
-            with col2:
-                st.image(processed_image, caption=f"✨ 모자이크 결과 ({face_count}개 얼굴)", use_container_width=True)
-                
-                byte_img = convert_image_to_bytes(processed_image)
-                processed_images_data.append((f"mosaic_{uploaded_file.name}", byte_img))
-                
+            with img_col1:
+                st.markdown("**🖼️ 원본 사진**")
+                st.image(image, use_column_width=True)
+            
+            with img_col2:
+                st.markdown("**✨ 모자이크 결과**")
+                with st.spinner("처리 중..."):
+                    processed_image, face_count = process_image(image, conf_value, False)
+                st.image(processed_image, use_column_width=True)
+                st.caption(f"탐지된 얼굴: **{face_count}개**")
+            
+            # 다운로드 버튼
+            st.markdown("---")
+            byte_img = convert_image_to_bytes(processed_image)
+            
+            col_download = st.columns([1, 2, 1])[1]
+            with col_download:
                 st.download_button(
-                    label=f"💾 이 이미지 다운로드",
+                    label=f"💾 결과 이미지 다운로드",
                     data=byte_img,
                     file_name=f"mosaic_{uploaded_file.name}",
                     mime="image/jpeg",
-                    key=f"download_{idx}"
+                    key="download_manual"
                 )
-    
-    # === 일괄 다운로드 버튼 ===
-    if len(processed_images_data) > 1:
-        st.markdown('<div class="bulk-download">', unsafe_allow_html=True)
-        st.markdown('<h3>📦 모든 결과 한번에 다운로드</h3>', unsafe_allow_html=True)
-        
-        zip_data = create_zip(processed_images_data)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        col_center = st.columns([1, 2, 1])[1]
-        with col_center:
-            st.download_button(
-                label=f"📥 전체 다운로드 ({len(processed_images_data)}장) - ZIP",
-                data=zip_data,
-                file_name=f"코끼리공장_모자이크_{timestamp}.zip",
-                mime="application/zip",
-                key="bulk_download"
-            )
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    st.balloons()
-    st.success("🎉 모든 작업이 완료되었습니다!")
+        else:
+            st.info("👈 왼쪽에서 이미지를 업로드하고 민감도를 조절해보세요!")
