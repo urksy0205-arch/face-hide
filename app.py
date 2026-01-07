@@ -8,114 +8,159 @@ import zipfile
 from datetime import datetime
 
 # --- 페이지 설정 ---
-st.set_page_config(layout="wide", page_title="코끼리공장 사진 모자이크 서비스", initial_sidebar_state="collapsed")
+st.set_page_config(layout="wide", page_title="코끼리공장 모자이크 도우미", initial_sidebar_state="collapsed")
 
-# --- 커스텀 CSS (연한 푸른색 그라데이션 + 중앙 컨테이너) ---
+# --- 커스텀 CSS ---
 st.markdown("""
 <style>
-    /* 전체 배경 그라데이션 */
+    /* 전체 배경 - 더 연한 푸른색 그라데이션 */
     .stApp {
-        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%, #90caf9 100%);
+        background: linear-gradient(135deg, #f0f7ff 0%, #e3f2fd 50%, #d6ebff 100%);
     }
     
     /* 메인 컨테이너 */
     .main-container {
         background: white;
-        border-radius: 20px;
+        border-radius: 16px;
         padding: 40px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.1);
-        max-width: 1200px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        max-width: 1400px;
         margin: 20px auto;
     }
     
     /* 헤더 영역 */
-    .header-section {
+    .header-container {
         display: flex;
         align-items: center;
-        margin-bottom: 30px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #e3f2fd;
+        gap: 15px;
+        margin-bottom: 40px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid #e0e0e0;
     }
     
-    .logo-title {
-        font-size: 28px;
-        font-weight: bold;
-        color: #1976d2;
-        margin-left: 15px;
+    .service-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #212121;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     
-    /* 토글 버튼 스타일 */
-    .stRadio > label {
-        font-size: 18px;
+    /* 섹션 제목 */
+    .section-title {
+        font-size: 16px;
         font-weight: 600;
         color: #1976d2;
+        margin-bottom: 15px;
+        margin-top: 30px;
     }
     
+    /* 라디오 버튼 영역 */
     .stRadio > div {
         display: flex;
-        gap: 20px;
-        background: #e3f2fd;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 30px;
+        gap: 15px;
+        background: transparent;
+        padding: 0;
+        margin-bottom: 20px;
     }
     
     .stRadio > div > label {
         background: white;
-        padding: 10px 30px;
+        padding: 12px 24px;
         border-radius: 8px;
         cursor: pointer;
-        transition: all 0.3s;
-        border: 2px solid transparent;
+        transition: all 0.2s;
+        border: 2px solid #e0e0e0;
+        font-size: 15px;
+        color: #424242;
+        font-weight: 500;
     }
     
     .stRadio > div > label:hover {
         border-color: #1976d2;
-        transform: translateY(-2px);
+        background: #f5f5f5;
+    }
+    
+    .stRadio > div > label[data-checked="true"] {
+        border-color: #1976d2;
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    /* 정보 박스 */
+    .stAlert {
+        background: #e3f2fd;
+        border-left: 4px solid #1976d2;
+        border-radius: 8px;
+        padding: 16px;
+        margin: 20px 0;
+    }
+    
+    /* 슬라이더 영역 - 너비 제한 */
+    .slider-container {
+        max-width: 400px;
+        margin: 20px 0;
+    }
+    
+    /* 파일 업로더 */
+    .stFileUploader > div {
+        background: #fafafa;
+        border-radius: 12px;
+        padding: 30px;
+        border: 2px dashed #bdbdbd;
+        text-align: center;
+    }
+    
+    .stFileUploader label {
+        font-size: 15px;
+        font-weight: 600;
+        color: #424242;
+    }
+    
+    /* expander */
+    .streamlit-expanderHeader {
+        background: #f5f5f5;
+        border-radius: 8px;
+        font-weight: 600;
+        padding: 12px;
     }
     
     /* 다운로드 버튼 */
     .stDownloadButton > button {
-        background: linear-gradient(90deg, #1976d2, #2196f3);
+        background: #1976d2;
         color: white;
         border: none;
         border-radius: 8px;
         padding: 10px 20px;
         font-weight: 600;
-        transition: all 0.3s;
+        transition: all 0.2s;
+        width: 100%;
     }
     
     .stDownloadButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(25,118,210,0.4);
+        background: #1565c0;
+        box-shadow: 0 4px 12px rgba(25,118,210,0.3);
     }
     
-    /* 일괄 다운로드 버튼 */
+    /* 일괄 다운로드 영역 */
     .bulk-download {
         text-align: center;
-        margin-top: 40px;
-        padding-top: 30px;
-        border-top: 2px solid #e3f2fd;
+        margin-top: 50px;
+        padding-top: 40px;
+        border-top: 1px solid #e0e0e0;
     }
     
-    /* 슬라이더 */
-    .stSlider > div > div > div {
-        background: linear-gradient(90deg, #1976d2, #2196f3);
+    .bulk-download h3 {
+        font-size: 20px;
+        font-weight: 700;
+        color: #212121;
+        margin-bottom: 20px;
     }
     
-    /* 파일 업로더 */
-    .stFileUploader > div {
-        background: #f5f5f5;
-        border-radius: 10px;
-        padding: 20px;
-        border: 2px dashed #1976d2;
-    }
-    
-    /* expander */
-    .streamlit-expanderHeader {
-        background: #e3f2fd;
-        border-radius: 8px;
-        font-weight: 600;
+    /* 구분선 */
+    hr {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 30px 0;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -134,7 +179,6 @@ def mosaic_area(image, x, y, w, h, ratio=0.05):
     if face_roi.size == 0: 
         return image
     
-    # 이미지 축소 후 확대로 모자이크 효과
     small_h = max(1, int(h * ratio))
     small_w = max(1, int(w * ratio))
     
@@ -157,7 +201,6 @@ def process_image(input_image, min_confidence, is_auto_mode):
         for result in results:
             confidence = result['confidence']
             
-            # 자동 모드는 민감도 무시하고 모두 처리
             if not is_auto_mode and confidence < min_confidence:
                 continue
                 
@@ -187,19 +230,22 @@ def create_zip(processed_images_data):
 # ==================== UI 시작 ====================
 
 # 헤더 (로고 + 제목)
-col_logo, col_title = st.columns([1, 5])
+st.markdown('<div class="header-container">', unsafe_allow_html=True)
+col_logo, col_title = st.columns([1, 11])
 with col_logo:
-    st.image("logo.png", width=120)  # 로고 이미지
+    st.image("logo.png", width=100)
 with col_title:
-    st.markdown('<div class="logo-title">사진 모자이크 서비스</div>', unsafe_allow_html=True)
+    st.markdown('<div class="service-title">모자이크 도우미</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-st.markdown("---")
+# === 모드 선택 섹션 ===
+st.markdown('<div class="section-title">처리 모드 선택</div>', unsafe_allow_html=True)
 
-# === 모드 선택 (토글) ===
 mode = st.radio(
-    "처리 모드 선택",
-    ["🤖 자동 모드 (AI가 최대한 많이 탐지)", "⚙️ 수동 모드 (민감도 직접 조절)"],
-    horizontal=True
+    "",
+    ["🤖 자동 모드", "⚙️ 수동 모드"],
+    horizontal=True,
+    label_visibility="collapsed"
 )
 
 is_auto_mode = "자동" in mode
@@ -207,19 +253,26 @@ is_auto_mode = "자동" in mode
 # === 설정 영역 ===
 if is_auto_mode:
     st.info("🤖 **자동 모드**: AI가 가장 강력한 민감도로 얼굴을 최대한 많이 찾아 모자이크 처리합니다.")
-    conf_value = 0.50  # 자동 모드는 최대 민감도
+    conf_value = 0.50
 else:
     st.info("⚙️ **수동 모드**: 슬라이더로 민감도를 조절할 수 있습니다. (낮을수록 더 많이 탐지)")
-    conf_value = st.slider("민감도 조절", 0.50, 0.99, 0.90, step=0.01)
-    st.caption(f"현재 민감도: {conf_value:.2f}")
+    
+    # 슬라이더를 짧게 (컬럼 사용)
+    col_slider, col_empty = st.columns([1, 2])
+    with col_slider:
+        conf_value = st.slider("민감도 조절", 0.50, 0.99, 0.90, step=0.01)
+        st.caption(f"현재 민감도: {conf_value:.2f}")
 
 st.markdown("---")
 
 # === 파일 업로드 ===
+st.markdown('<div class="section-title">📤 이미지 파일을 선택하세요 (여러 개 선택 가능)</div>', unsafe_allow_html=True)
+
 uploaded_files = st.file_uploader(
-    "📤 이미지 파일을 선택하세요 (여러 개 선택 가능)", 
+    "파일 선택", 
     type=['jpg', 'jpeg', 'png'], 
-    accept_multiple_files=True
+    accept_multiple_files=True,
+    label_visibility="collapsed"
 )
 
 # === 처리 결과 저장용 리스트 ===
@@ -232,25 +285,21 @@ if uploaded_files:
     for idx, uploaded_file in enumerate(uploaded_files, 1):
         with st.expander(f"📷 [{idx}] {uploaded_file.name}", expanded=True):
             
-            # 이미지 로드
             image = Image.open(uploaded_file)
             if image.mode != 'RGB':
                 image = image.convert('RGB')
             
-            # 좌우 배치
             col1, col2 = st.columns(2)
             
             with col1:
                 st.image(image, caption="🖼️ 원본 사진", use_container_width=True)
 
-            # 처리 실행
             with st.spinner(f"🔄 {uploaded_file.name} 처리 중..."):
                 processed_image, face_count = process_image(image, conf_value, is_auto_mode)
 
             with col2:
                 st.image(processed_image, caption=f"✨ 모자이크 결과 ({face_count}개 얼굴)", use_container_width=True)
                 
-                # 개별 다운로드 버튼
                 byte_img = convert_image_to_bytes(processed_image)
                 processed_images_data.append((f"mosaic_{uploaded_file.name}", byte_img))
                 
@@ -265,18 +314,20 @@ if uploaded_files:
     # === 일괄 다운로드 버튼 ===
     if len(processed_images_data) > 1:
         st.markdown('<div class="bulk-download">', unsafe_allow_html=True)
-        st.markdown("### 📦 모든 결과 한번에 다운로드")
+        st.markdown('<h3>📦 모든 결과 한번에 다운로드</h3>', unsafe_allow_html=True)
         
         zip_data = create_zip(processed_images_data)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        st.download_button(
-            label=f"📥 전체 다운로드 ({len(processed_images_data)}장) - ZIP",
-            data=zip_data,
-            file_name=f"코끼리공장_모자이크_{timestamp}.zip",
-            mime="application/zip",
-            key="bulk_download"
-        )
+        col_center = st.columns([1, 2, 1])[1]
+        with col_center:
+            st.download_button(
+                label=f"📥 전체 다운로드 ({len(processed_images_data)}장) - ZIP",
+                data=zip_data,
+                file_name=f"코끼리공장_모자이크_{timestamp}.zip",
+                mime="application/zip",
+                key="bulk_download"
+            )
         st.markdown('</div>', unsafe_allow_html=True)
     
     st.balloons()
